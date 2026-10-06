@@ -1,0 +1,13 @@
+# zipped copies of folders that are already in the repo (all over GitHub's 100 MB file limit)
+*.zip
+
+# Python cache and local training output
+__pycache__/
+*.pyc
+runs/
+
+# personal documents that are not part of the project
+*.docx
+
+# duplicate of dashboard/best .pt
+best (1).pt

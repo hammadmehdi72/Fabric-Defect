@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Textile Defect Continuous Video Player</title>
+<style>
+  :root {
+    --bg-dark: #090d16;
+    --card-bg: #131b2e;
+    --card-border: #1f2b45;
+    --accent: #38bdf8;
+    --text-primary: #f8fafc;
+    --text-muted: #94a3b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: #050810;
+    border-bottom: 1px solid var(--card-border);
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .logo {
+    font-size: 1.25rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .badge {
+    background: #0369a1;
+    color: #fff;
+    padding: 0.2rem 0.6rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+  }
+  .main-layout {
+    display: flex;
+    flex: 1;
+    max-width: 1400px;
+    width: 100%;
+    margin: 1.5rem auto;
+    padding: 0 1.5rem;
+    gap: 1.5rem;
+  }
+  .player-section {
+    flex: 1 1 700px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .video-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    max-width: 680px;
+    margin: 0 auto;
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--card-border);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  }
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+  .controls-panel {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    max-width: 680px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .btn-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .btn {
+    background: #1c2742;
+    border: 1px solid var(--card-border);
+    color: var(--text-primary);
+    padding: 0.5rem 0.9rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn:hover {
+    background: #283759;
+    border-color: var(--accent);
+  }
+  .btn.active {
+    background: var(--accent);
+    color: #090d16;
+    font-weight: 600;
+  }
+  .video-info {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+  .playlist-section {
+    flex: 0 0 340px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    max-height: 80vh;
+  }
+  .playlist-header {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--card-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .playlist-items {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    flex: 1;
+    padding-right: 0.25rem;
+  }
+  .playlist-item {
+    padding: 0.65rem 0.85rem;
+    border-radius: 6px;
+    background: #0f172a;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-size: 0.82rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.15s;
+  }
+  .playlist-item:hover {
+    background: #1e293b;
+    border-color: var(--accent);
+  }
+  .playlist-item.active {
+    background: #0369a1;
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+  }
+  .autoplay-bar {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--card-border);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    🎥 Textile Continuous Defect Inspection
+    <span class="badge">30 Videos (Max 1 min each)</span>
+  </div>
+  <div style="font-size:0.85rem; color:var(--text-muted)">
+    Continuous 2.0 FPS Playback &bull; Total 2,130 Frames
+  </div>
+</header>
+
+<div class="main-layout">
+  <div class="player-section">
+    <div class="video-container">
+      <video id="mainVideo" controls autoplay></video>
+    </div>
+    <div class="controls-panel">
+      <div class="btn-group">
+        <button class="btn" onclick="prevVideo()">&larr; Previous</button>
+        <button class="btn" onclick="togglePlay()" id="playPauseBtn">Pause</button>
+        <button class="btn" onclick="nextVideo()">Next &rarr;</button>
+      </div>
+      <div class="video-info" id="nowPlayingText">
+        Playing Part 01 of 30
+      </div>
+      <div class="btn-group">
+        <span style="font-size:0.8rem; color:var(--text-muted);">Speed:</span>
+        <button class="btn" onclick="setSpeed(0.5, this)">0.5x</button>
+        <button class="btn active" onclick="setSpeed(1.0, this)">1x</button>
+        <button class="btn" onclick="setSpeed(2.0, this)">2x</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="playlist-section">
+    <div class="playlist-header">
+      <span>Continuous Playlist</span>
+      <span style="font-size:0.8rem; color:var(--accent);">30 Videos</span>
+    </div>
+    <div class="playlist-items" id="playlistItems"></div>
+    <div class="autoplay-bar">
+      <input type="checkbox" id="autoPlayNext" checked>
+      <label for="autoPlayNext">Auto-play next video continuously</label>
+    </div>
+  </div>
+</div>
+
+<script>
+  const VIDEOS = [{'title': 'Part 01 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_01.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 02 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_02.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 03 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_03.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 04 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_04.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 05 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_05.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 06 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_06.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 07 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_07.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 08 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_08.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 09 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_09.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 10 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_10.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 11 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_11.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 12 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_12.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 13 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_13.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 14 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_14.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 15 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_15.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 16 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_16.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 17 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_17.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 18 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_18.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 19 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_19.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 20 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_20.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 21 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_21.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 22 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_22.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 23 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_23.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 24 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_24.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 25 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_25.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 26 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_26.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 27 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_27.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 28 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_28.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 29 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_29.mp4', 'frames': 71, 'duration': '35.5s'}, {'title': 'Part 30 (71 frames, 35.5s)', 'src': './Textile_Videos/Textile_Defects_Part_30.mp4', 'frames': 71, 'duration': '35.5s'}];
+  let currentIndex = 0;
+  const videoElem = document.getElementById('mainVideo');
+  const nowPlayingText = document.getElementById('nowPlayingText');
+  const playPauseBtn = document.getElementById('playPauseBtn');
+  const autoPlayNext = document.getElementById('autoPlayNext');
+
+  function init() {
+    renderPlaylist();
+    loadVideo(0);
+
+    videoElem.addEventListener('ended', () => {
+      if (autoPlayNext.checked) {
+        nextVideo();
+      }
+    });
+
+    videoElem.addEventListener('play', () => { playPauseBtn.textContent = 'Pause'; });
+    videoElem.addEventListener('pause', () => { playPauseBtn.textContent = 'Play'; });
+  }
+
+  function renderPlaylist() {
+    const container = document.getElementById('playlistItems');
+    container.innerHTML = '';
+    VIDEOS.forEach((item, index) => {
+      const div = document.createElement('div');
+      div.className = 'playlist-item' + (index === currentIndex ? ' active' : '');
+      div.onclick = () => loadVideo(index);
+      div.innerHTML = `
+        <span>Part ${index + 1 < 10 ? '0' : ''}${index + 1}</span>
+        <span style="opacity:0.7">${item.frames} frames &bull; ${item.duration}</span>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  function loadVideo(index) {
+    currentIndex = index;
+    const item = VIDEOS[index];
+    videoElem.src = item.src;
+    videoElem.play();
+    nowPlayingText.textContent = `Playing Part ${index + 1 < 10 ? '0' : ''}${index + 1} (${item.frames} frames, ${item.duration})`;
+
+    document.querySelectorAll('.playlist-item').forEach((el, i) => {
+      if (i === index) {
+        el.classList.add('active');
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } else {
+        el.classList.remove('active');
+      }
+    });
+  }
+
+  function togglePlay() {
+    if (videoElem.paused) {
+      videoElem.play();
+    } else {
+      videoElem.pause();
+    }
+  }
+
+  function prevVideo() {
+    if (currentIndex > 0) {
+      loadVideo(currentIndex - 1);
+    } else {
+      loadVideo(VIDEOS.length - 1);
+    }
+  }
+
+  function nextVideo() {
+    if (currentIndex < VIDEOS.length - 1) {
+      loadVideo(currentIndex + 1);
+    } else {
+      loadVideo(0);
+    }
+  }
+
+  function setSpeed(speed, btn) {
+    videoElem.playbackRate = speed;
+    document.querySelectorAll('.btn-group .btn').forEach(b => {
+      if (b.textContent.includes('x')) b.classList.remove('active');
+    });
+    if (btn) btn.classList.add('active');
+  }
+
+  init();
+</script>
+</body>
+</html>

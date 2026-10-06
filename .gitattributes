@@ -1,0 +1,2 @@
+dashboard/patchcore_textile.pt filter=lfs diff=lfs merge=lfs -text
+fabric[[:space:]]inspector[[:space:]]pathcore/patchcore_textile.pt filter=lfs diff=lfs merge=lfs -text

@@ -1,0 +1,7 @@
+path: C:\Users\mehdi\Desktop\Fabric\prepared\fabric_yolo
+train: train/images
+val: valid/images
+test: test/images
+
+nc: 4
+names: ["broken_yarn", "stain", "defect", "pulled_or_thick_thread"]

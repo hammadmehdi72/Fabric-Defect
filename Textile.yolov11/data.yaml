@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 4
+names: ['Hole', 'Knot', 'Line', 'Stain']
+
+roboflow:
+  workspace: hammad-mehdi
+  project: textile-cjszl-ehmyw
+  version: dataset
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/hammad-mehdi/textile-cjszl-ehmyw/dataset/dataset

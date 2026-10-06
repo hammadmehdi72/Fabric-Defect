@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fabric Defect COCO Dataset Visualizer</title>
+<style>
+  :root {
+    --bg-dark: #0b0f19;
+    --card-bg: #151e2e;
+    --card-border: #223049;
+    --text-primary: #f8fafc;
+    --text-muted: #94a3b8;
+    --accent: #38bdf8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    line-height: 1.5;
+  }
+  header {
+    background: #070a12;
+    border-bottom: 1px solid var(--card-border);
+    padding: 1.25rem 2rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .title-group h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .title-group p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .stats-bar {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .stat-pill {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    padding: 0.35rem 0.85rem;
+    border-radius: 9999px;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+  }
+  .stat-pill:hover, .stat-pill.active {
+    border-color: var(--accent);
+    background: #1e293b;
+    transform: translateY(-1px);
+  }
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .controls-bar {
+    max-width: 1400px;
+    margin: 1.5rem auto 1rem;
+    padding: 0 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .search-input {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    color: var(--text-primary);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    width: 320px;
+    max-width: 100%;
+    outline: none;
+  }
+  .search-input:focus {
+    border-color: var(--accent);
+  }
+  .view-options {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .grid-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1rem 1.5rem 4rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.25rem;
+  }
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    flex-direction: column;
+  }
+  .card:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+  }
+  .card-img-wrap {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: #000;
+    overflow: hidden;
+    position: relative;
+  }
+  .card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.3s ease;
+  }
+  .card:hover .card-img {
+    transform: scale(1.03);
+  }
+  .card-body {
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .card-filename {
+    font-size: 0.78rem;
+    font-family: monospace;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+  }
+  .defect-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .pagination-bar {
+    max-width: 1400px;
+    margin: 1rem auto 3rem;
+    padding: 0 1.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .page-btn {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    color: var(--text-primary);
+    padding: 0.5rem 0.9rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+  }
+  .page-btn:hover:not(:disabled) {
+    background: #1e293b;
+    border-color: var(--accent);
+  }
+  .page-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .page-info {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin: 0 0.5rem;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(5px);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+  }
+  .modal-overlay.active {
+    display: flex;
+  }
+  .modal-content {
+    background: #111827;
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    max-width: 1000px;
+    width: 100%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  }
+  .modal-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--card-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .modal-title {
+    font-size: 1rem;
+    font-family: monospace;
+    color: var(--accent);
+  }
+  .modal-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.5rem;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .modal-body {
+    display: flex;
+    flex-wrap: wrap;
+    overflow-y: auto;
+    padding: 1.5rem;
+    gap: 1.5rem;
+  }
+  .modal-viewer {
+    flex: 1 1 500px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .modal-img-container {
+    width: 100%;
+    max-width: 600px;
+    aspect-ratio: 1/1;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+  }
+  .modal-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  .modal-toggle-bar {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .toggle-btn {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    color: var(--text-primary);
+    padding: 0.4rem 0.85rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+  .toggle-btn.active {
+    background: var(--accent);
+    color: #0f172a;
+    font-weight: 600;
+    border-color: var(--accent);
+  }
+  .modal-details {
+    flex: 1 1 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .details-box {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 1rem;
+  }
+  .details-box h3 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+  }
+  .ann-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .ann-item {
+    background: #0f172a;
+    padding: 0.6rem 0.8rem;
+    border-radius: 6px;
+    border-left: 4px solid var(--accent);
+    font-size: 0.8rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .toggle-global-btn {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    color: var(--text-primary);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+  .toggle-global-btn:hover {
+    border-color: var(--accent);
+    background: #1c2742;
+  }
+  .toggle-global-btn.active {
+    background: #0369a1;
+    border-color: var(--accent);
+    color: #fff;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+  }
+  .toggle-card-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 0.72rem;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.15s ease;
+    user-select: none;
+  }
+  .toggle-card-btn:hover {
+    background: rgba(3, 105, 161, 0.9);
+    border-color: var(--accent);
+  }
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title-group">
+    <h1>🧵 Fabric Defect COCO Dataset Visualizer</h1>
+    <p>1,151 Annotated Images &bull; 1,513 Defect Annotations (Polygons &amp; BBoxes)</p>
+  </div>
+  <div class="stats-bar" id="categoryFilters">
+    <div class="stat-pill active" onclick="setFilter('ALL', this)">
+      <span>All Images</span>
+      <strong>1151</strong>
+    </div>
+    <div class="stat-pill" onclick="setFilter('fil tire ou gros', this)">
+      <span class="dot" style="background:#32cd32;"></span>
+      <span>fil tire ou gros</span>
+      <strong>599</strong>
+    </div>
+    <div class="stat-pill" onclick="setFilter('Cassure', this)">
+      <span class="dot" style="background:#f03c28;"></span>
+      <span>Cassure</span>
+      <strong>306</strong>
+    </div>
+    <div class="stat-pill" onclick="setFilter('defaut', this)">
+      <span class="dot" style="background:#f5c800;"></span>
+      <span>defaut</span>
+      <strong>306</strong>
+    </div>
+    <div class="stat-pill" onclick="setFilter('Tache', this)">
+      <span class="dot" style="background:#14a0f0;"></span>
+      <span>Tache</span>
+      <strong>302</strong>
+    </div>
+  </div>
+</header>
+
+<div class="controls-bar">
+  <input type="text" class="search-input" id="searchInput" placeholder="Search by filename or defect..." oninput="onSearchChange()">
+  <div class="view-options">
+    <button class="toggle-global-btn active" id="btnGlobalToggle" onclick="toggleGlobalAnnotations()">
+      <span id="globalToggleIcon">👁️</span> <span id="globalToggleText">Annotations: Visible</span>
+    </button>
+    <span id="filteredStats">Showing 1151 images</span>
+  </div>
+</div>
+
+<div class="grid-container" id="imageGrid"></div>
+
+<div class="pagination-bar" id="paginationBar">
+  <button class="page-btn" id="prevBtn" onclick="changePage(-1)">&larr; Previous</button>
+  <span class="page-info" id="pageInfo">Page 1 of 32</span>
+  <button class="page-btn" id="nextBtn" onclick="changePage(1)">Next &rarr;</button>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title" id="modalFilename">image.jpg</div>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-viewer">
+        <div class="modal-img-container">
+          <img id="modalImg" class="modal-img" src="" alt="Defect Visual">
+        </div>
+        <div class="modal-toggle-bar">
+          <button class="toggle-btn active" id="btnAnnotated" onclick="toggleModalView(true)">👁️ Show Annotations (H)</button>
+          <button class="toggle-btn" id="btnRaw" onclick="toggleModalView(false)">🙈 Hide Annotations (H)</button>
+        </div>
+      </div>
+      <div class="modal-details">
+        <div class="details-box">
+          <h3>Defect Annotations (<span id="modalAnnCount">0</span>)</h3>
+          <div class="ann-list" id="modalAnnList"></div>
+        </div>
+        <div class="details-box">
+          <h3>Image Metadata</h3>
+          <div style="font-size:0.8rem; color:var(--text-muted); display:flex; flex-direction:column; gap:0.3rem;">
+            <div>Resolution: <strong>640 &times; 640 px</strong></div>
+            <div>Visualized Path: <code>Fabric/train_visualized/</code></div>
+            <div>Original Dataset: <code>Fabric/fabric defect.coco/train/</code></div>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:auto;">
+          <button class="page-btn" onclick="prevModalItem()">&larr; Previous Image</button>
+          <button class="page-btn" onclick="nextModalItem()">Next Image &rarr;</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="gallery_data.js"></script>
+<script>
+  let currentFilter = 'ALL';
+  let searchQuery = '';
+  let currentPage = 1;
+  const itemsPerPage = 36;
+  let filteredItems = [];
+  let currentModalItem = null;
+  let isViewingAnnotated = true;
+
+  
+  let globalShowAnnotations = true;
+  const ANNOTATED_PATH_PREFIX = './';
+  const RAW_PATH_PREFIX = '../fabric defect.coco/train/';
+
+  function toggleGlobalAnnotations() {
+    globalShowAnnotations = !globalShowAnnotations;
+    const btn = document.getElementById('btnGlobalToggle');
+    const icon = document.getElementById('globalToggleIcon');
+    const txt = document.getElementById('globalToggleText');
+    if (globalShowAnnotations) {
+      btn.classList.add('active');
+      icon.textContent = '👁️';
+      txt.textContent = 'Annotations: Visible';
+    } else {
+      btn.classList.remove('active');
+      icon.textContent = '🙈';
+      txt.textContent = 'Annotations: Hidden (Raw)';
+    }
+    renderGrid();
+  }
+
+  function init() {
+    applyFilter();
+    document.addEventListener('keydown', (e) => {
+      if (document.getElementById('modalOverlay').classList.contains('active')) {
+        if (e.key === 'Escape') closeModal();
+        if (e.key === 'h' || e.key === 'H' || e.code === 'Space') {
+          e.preventDefault();
+          toggleModalView(!isViewingAnnotated);
+        }
+        if (e.key === 'ArrowLeft') prevModalItem();
+        if (e.key === 'ArrowRight') nextModalItem();
+      }
+    });
+  }
+
+  function setFilter(cat, elem) {
+    currentFilter = cat;
+    document.querySelectorAll('.stat-pill').forEach(el => el.classList.remove('active'));
+    if (elem) elem.classList.add('active');
+    currentPage = 1;
+    applyFilter();
+  }
+
+  function onSearchChange() {
+    searchQuery = document.getElementById('searchInput').value.trim().toLowerCase();
+    currentPage = 1;
+    applyFilter();
+  }
+
+  function applyFilter() {
+    filteredItems = GALLERY_DATA.filter(item => {
+      const matchesCat = currentFilter === 'ALL' || item.categories.includes(currentFilter);
+      const matchesSearch = !searchQuery ||
+        item.filename.toLowerCase().includes(searchQuery) ||
+        item.categories.some(c => c.toLowerCase().includes(searchQuery));
+      return matchesCat && matchesSearch;
+    });
+
+    document.getElementById('filteredStats').textContent = `Showing ${filteredItems.length} images`;
+    renderGrid();
+  }
+
+  function renderGrid() {
+    const grid = document.getElementById('imageGrid');
+    grid.innerHTML = '';
+
+    const totalPages = Math.ceil(filteredItems.length / itemsPerPage) || 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    const startIdx = (currentPage - 1) * itemsPerPage;
+    const endIdx = Math.min(startIdx + itemsPerPage, filteredItems.length);
+    const pageItems = filteredItems.slice(startIdx, endIdx);
+
+    pageItems.forEach((item, index) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      const imgSrc = globalShowAnnotations 
+        ? ANNOTATED_PATH_PREFIX + encodeURIComponent(item.filename)
+        : RAW_PATH_PREFIX + encodeURIComponent(item.filename);
+
+      let badgesHtml = item.categories.map(cat => {
+        const bg = COLOR_MAP[cat] || '#888';
+        const txtColor = (cat === 'defaut') ? '#000' : '#fff';
+        return `<span class="defect-badge" style="background:${bg}; color:${txtColor}">${cat}</span>`;
+      }).join('');
+
+      card.innerHTML = `
+        <div class="card-img-wrap" onclick="openModal(${startIdx + index})">
+          <button class="toggle-card-btn" onclick="toggleSingleCard(event, this, '${encodeURIComponent(item.filename)}')">
+            ${globalShowAnnotations ? '👁️ Ann' : '🙈 Raw'}
+          </button>
+          <img class="card-img" loading="lazy" src="${imgSrc}" alt="${item.filename}">
+        </div>
+        <div class="card-body" onclick="openModal(${startIdx + index})">
+          <div class="card-filename" title="${item.filename}">${item.filename}</div>
+          <div class="badge-row">${badgesHtml}</div>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+
+    document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+    document.getElementById('prevBtn').disabled = currentPage <= 1;
+    document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+  }
+
+  function changePage(delta) {
+    currentPage += delta;
+    renderGrid();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  let currentFilteredIndex = 0;
+  
+  function toggleSingleCard(e, btn, encodedFilename) {
+    e.stopPropagation();
+    const img = btn.parentElement.querySelector('.card-img');
+    const isShowingAnn = btn.textContent.includes('Ann');
+    if (isShowingAnn) {
+      img.src = RAW_PATH_PREFIX + encodedFilename;
+      btn.textContent = '🙈 Raw';
+      btn.style.background = 'rgba(239, 68, 68, 0.8)';
+    } else {
+      img.src = ANNOTATED_PATH_PREFIX + encodedFilename;
+      btn.textContent = '👁️ Ann';
+      btn.style.background = '';
+    }
+  }
+
+  function openModal(filteredIndex) {
+    currentFilteredIndex = filteredIndex;
+    const item = filteredItems[filteredIndex];
+    if (!item) return;
+
+    currentModalItem = item;
+    isViewingAnnotated = true;
+    updateModalView();
+
+    document.getElementById('modalOverlay').classList.add('active');
+  }
+
+  function updateModalView() {
+    if (!currentModalItem) return;
+    document.getElementById('modalFilename').textContent = currentModalItem.filename;
+    document.getElementById('modalAnnCount').textContent = currentModalItem.num_defects;
+
+    
+    const modalImg = document.getElementById('modalImg');
+    if (isViewingAnnotated) {
+      modalImg.src = ANNOTATED_PATH_PREFIX + encodeURIComponent(currentModalItem.filename);
+      document.getElementById('btnAnnotated').classList.add('active');
+      document.getElementById('btnRaw').classList.remove('active');
+    } else {
+      modalImg.src = RAW_PATH_PREFIX + encodeURIComponent(currentModalItem.filename);
+      document.getElementById('btnRaw').classList.add('active');
+      document.getElementById('btnAnnotated').classList.remove('active');
+    }
+    const annList = document.getElementById('modalAnnList');
+    annList.innerHTML = '';
+    currentModalItem.annotations.forEach((ann, i) => {
+      const color = COLOR_MAP[ann.category] || '#888';
+      const div = document.createElement('div');
+      div.className = 'ann-item';
+      div.style.borderLeftColor = color;
+      div.innerHTML = `
+        <div>
+          <strong style="color:${color}">${ann.category}</strong>
+          <div style="font-size:0.75rem; color:var(--text-muted)">BBox: [${ann.bbox.join(', ')}]</div>
+        </div>
+        <span style="font-size:0.75rem; color:var(--text-muted)">${ann.points} poly pts</span>
+      `;
+      annList.appendChild(div);
+    });
+  }
+
+  function toggleModalView(annotated) {
+    isViewingAnnotated = annotated;
+    updateModalView();
+  }
+
+  function closeModal(e) {
+    if (e && e.target !== e.currentTarget && !e.target.classList.contains('modal-close')) return;
+    document.getElementById('modalOverlay').classList.remove('active');
+  }
+
+  function prevModalItem() {
+    if (currentFilteredIndex > 0) {
+      openModal(currentFilteredIndex - 1);
+    }
+  }
+
+  function nextModalItem() {
+    if (currentFilteredIndex < filteredItems.length - 1) {
+      openModal(currentFilteredIndex + 1);
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>

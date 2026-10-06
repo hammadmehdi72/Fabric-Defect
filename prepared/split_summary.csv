@@ -1,0 +1,9 @@
+dataset,split,photos,images,boxes,class_1,class_2,class_3,class_4
+textile,test,140,140,209,58,45,22,84
+textile,valid,280,280,385,107,110,45,123
+textile,train,980,1488,2192,683,503,422,584
+textile,patchcore,,,,train/good=1540,test/good=239,test/defect=195
+fabric,test,68,68,81,10,22,20,29
+fabric,valid,135,135,171,23,27,65,56
+fabric,train,473,723,948,190,192,192,374
+fabric,patchcore,,,,train/good=815,test/good=119,test/defect=81

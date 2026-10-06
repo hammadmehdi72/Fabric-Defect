@@ -1,0 +1,5 @@
+class,defect crops,flagged,detection rate
+Hole,52,51,0.981
+Knot,45,30,0.667
+Line,22,7,0.318
+Stain,76,64,0.842

@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consistent Fabric Roll Video Inspection</title>
+<style>
+  :root {
+    --bg-dark: #070a12;
+    --card-bg: #111827;
+    --card-border: #1f293d;
+    --accent: #38bdf8;
+    --text-primary: #f8fafc;
+    --text-muted: #94a3b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: #04060c;
+    border-bottom: 1px solid var(--card-border);
+    padding: 1rem 2rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .logo-group h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .logo-group p {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+  .badge {
+    background: #0284c7;
+    color: #fff;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .main-layout {
+    display: flex;
+    flex: 1;
+    max-width: 1400px;
+    width: 100%;
+    margin: 1.5rem auto;
+    padding: 0 1.5rem;
+    gap: 1.5rem;
+  }
+  .player-section {
+    flex: 1 1 700px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .video-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    max-width: 680px;
+    margin: 0 auto;
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--card-border);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
+  }
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+  .controls-panel {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    max-width: 680px;
+    margin: 0 auto;
+    width: 100%;
+  }
+  .btn-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .btn {
+    background: #1e293b;
+    border: 1px solid var(--card-border);
+    color: var(--text-primary);
+    padding: 0.5rem 0.9rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn:hover {
+    background: #334155;
+    border-color: var(--accent);
+  }
+  .btn.active {
+    background: var(--accent);
+    color: #090d16;
+    font-weight: 600;
+    border-color: var(--accent);
+  }
+  .video-info {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--accent);
+  }
+  .playlist-section {
+    flex: 0 0 380px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    max-height: 82vh;
+  }
+  .playlist-header {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--card-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .playlist-items {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    flex: 1;
+    padding-right: 0.25rem;
+  }
+  .playlist-item {
+    padding: 0.7rem 0.9rem;
+    border-radius: 8px;
+    background: #090d16;
+    border: 1px solid var(--card-border);
+    cursor: pointer;
+    font-size: 0.82rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.15s ease;
+  }
+  .playlist-item:hover {
+    background: #172554;
+    border-color: var(--accent);
+  }
+  .playlist-item.active {
+    background: #0284c7;
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
+  }
+  .roll-title {
+    font-weight: 600;
+    display: block;
+    margin-bottom: 2px;
+  }
+  .roll-meta {
+    font-size: 0.75rem;
+    opacity: 0.8;
+  }
+  .autoplay-bar {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--card-border);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-group">
+    <h1>🧵 Consistent Fabric Roll Video Player</h1>
+    <p>41 Consistent Rolls &bull; 1,981 Distinct Original Photos (Skipped Duplicates &amp; Overlap) &bull; Max 1 min per video</p>
+  </div>
+  <div class="badge">41 Fabric Roll Videos</div>
+</header>
+
+<div class="main-layout">
+  <div class="player-section">
+    <div class="video-container">
+      <video id="mainVideo" controls autoplay></video>
+    </div>
+    <div class="controls-panel">
+      <div class="btn-group">
+        <button class="btn" onclick="prevVideo()">&larr; Previous</button>
+        <button class="btn" onclick="togglePlay()" id="playPauseBtn">Pause</button>
+        <button class="btn" onclick="nextVideo()">Next &rarr;</button>
+      </div>
+      <div class="video-info" id="nowPlayingText">
+        Loading...
+      </div>
+      <div class="btn-group">
+        <span style="font-size:0.8rem; color:var(--text-muted);">Speed:</span>
+        <button class="btn" onclick="setSpeed(0.5, this)">0.5x</button>
+        <button class="btn active" onclick="setSpeed(1.0, this)">1x</button>
+        <button class="btn" onclick="setSpeed(2.0, this)">2x</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="playlist-section">
+    <div class="playlist-header">
+      <span>Consistent Fabric Rolls</span>
+      <span style="font-size:0.8rem; color:var(--accent);">41 Videos</span>
+    </div>
+    <div class="playlist-items" id="playlistItems"></div>
+    <div class="autoplay-bar">
+      <input type="checkbox" id="autoPlayNext" checked>
+      <label for="autoPlayNext">Auto-play next fabric roll continuously</label>
+    </div>
+  </div>
+</div>
+
+<script>
+  const VIDEOS = [{"title": "Roll 01: Medium Grey Weave", "filename": "Fabric_Roll_01.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_01.mp4", "frames": 65, "duration": "32.5s", "duration_sec": 32.5, "color_desc": "Medium Grey Weave"}, {"title": "Roll 02: Medium Grey Weave", "filename": "Fabric_Roll_02.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_02.mp4", "frames": 47, "duration": "23.5s", "duration_sec": 23.5, "color_desc": "Medium Grey Weave"}, {"title": "Roll 03: Medium Grey Weave", "filename": "Fabric_Roll_03.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_03.mp4", "frames": 71, "duration": "35.5s", "duration_sec": 35.5, "color_desc": "Medium Grey Weave"}, {"title": "Roll 04: Medium Grey Weave", "filename": "Fabric_Roll_04.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_04.mp4", "frames": 71, "duration": "35.5s", "duration_sec": 35.5, "color_desc": "Medium Grey Weave"}, {"title": "Roll 05: Medium Grey Weave", "filename": "Fabric_Roll_05.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_05.mp4", "frames": 70, "duration": "35.0s", "duration_sec": 35.0, "color_desc": "Medium Grey Weave"}, {"title": "Roll 06: Medium Grey Weave", "filename": "Fabric_Roll_06.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_06.mp4", "frames": 45, "duration": "22.5s", "duration_sec": 22.5, "color_desc": "Medium Grey Weave"}, {"title": "Roll 07: Medium Grey Weave", "filename": "Fabric_Roll_07.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_07.mp4", "frames": 45, "duration": "22.5s", "duration_sec": 22.5, "color_desc": "Medium Grey Weave"}, {"title": "Roll 08: Denim / Indigo Blue", "filename": "Fabric_Roll_08.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_08.mp4", "frames": 50, "duration": "25.0s", "duration_sec": 25.0, "color_desc": "Denim / Indigo Blue"}, {"title": "Roll 09: Denim / Indigo Blue", "filename": "Fabric_Roll_09.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_09.mp4", "frames": 49, "duration": "24.5s", "duration_sec": 24.5, "color_desc": "Denim / Indigo Blue"}, {"title": "Roll 10: Medium Grey Weave", "filename": "Fabric_Roll_10.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_10.mp4", "frames": 54, "duration": "27.0s", "duration_sec": 27.0, "color_desc": "Medium Grey Weave"}, {"title": "Roll 11: Medium Grey Weave", "filename": "Fabric_Roll_11.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_11.mp4", "frames": 36, "duration": "18.0s", "duration_sec": 18.0, "color_desc": "Medium Grey Weave"}, {"title": "Roll 12: Light Silver / Grey Weave", "filename": "Fabric_Roll_12.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_12.mp4", "frames": 41, "duration": "20.5s", "duration_sec": 20.5, "color_desc": "Light Silver / Grey Weave"}, {"title": "Roll 13: Medium Grey Weave", "filename": "Fabric_Roll_13.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_13.mp4", "frames": 40, "duration": "20.0s", "duration_sec": 20.0, "color_desc": "Medium Grey Weave"}, {"title": "Roll 14: Denim / Indigo Blue", "filename": "Fabric_Roll_14.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_14.mp4", "frames": 38, "duration": "19.0s", "duration_sec": 19.0, "color_desc": "Denim / Indigo Blue"}, {"title": "Roll 15: Denim / Indigo Blue", "filename": "Fabric_Roll_15.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_15.mp4", "frames": 38, "duration": "19.0s", "duration_sec": 19.0, "color_desc": "Denim / Indigo Blue"}, {"title": "Roll 16: Denim / Indigo Blue", "filename": "Fabric_Roll_16.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_16.mp4", "frames": 38, "duration": "19.0s", "duration_sec": 19.0, "color_desc": "Denim / Indigo Blue"}, {"title": "Roll 17: Textile Melange", "filename": "Fabric_Roll_17.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_17.mp4", "frames": 38, "duration": "19.0s", "duration_sec": 19.0, "color_desc": "Textile Melange"}, {"title": "Roll 18: Textile Melange", "filename": "Fabric_Roll_18.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_18.mp4", "frames": 59, "duration": "29.5s", "duration_sec": 29.5, "color_desc": "Textile Melange"}, {"title": "Roll 19: Denim / Indigo Blue", "filename": "Fabric_Roll_19.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_19.mp4", "frames": 22, "duration": "11.0s", "duration_sec": 11.0, "color_desc": "Denim / Indigo Blue"}, {"title": "Roll 20: Denim / Indigo Blue", "filename": "Fabric_Roll_20.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_20.mp4", "frames": 28, "duration": "14.0s", "duration_sec": 14.0, "color_desc": "Denim / Indigo Blue"}, {"title": "Roll 21: Denim / Indigo Blue", "filename": "Fabric_Roll_21.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_21.mp4", "frames": 41, "duration": "20.5s", "duration_sec": 20.5, "color_desc": "Denim / Indigo Blue"}, {"title": "Roll 22: Denim / Indigo Blue", "filename": "Fabric_Roll_22.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_22.mp4", "frames": 41, "duration": "20.5s", "duration_sec": 20.5, "color_desc": "Denim / Indigo Blue"}, {"title": "Roll 23: Medium Grey Weave", "filename": "Fabric_Roll_23.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_23.mp4", "frames": 71, "duration": "35.5s", "duration_sec": 35.5, "color_desc": "Medium Grey Weave"}, {"title": "Roll 24: Light Silver / Grey Weave", "filename": "Fabric_Roll_24.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_24.mp4", "frames": 71, "duration": "35.5s", "duration_sec": 35.5, "color_desc": "Light Silver / Grey Weave"}, {"title": "Roll 25: Light Silver / Grey Weave", "filename": "Fabric_Roll_25.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_25.mp4", "frames": 71, "duration": "35.5s", "duration_sec": 35.5, "color_desc": "Light Silver / Grey Weave"}, {"title": "Roll 26: Light Silver / Grey Weave", "filename": "Fabric_Roll_26.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_26.mp4", "frames": 61, "duration": "30.5s", "duration_sec": 30.5, "color_desc": "Light Silver / Grey Weave"}, {"title": "Roll 27: Denim / Indigo Blue", "filename": "Fabric_Roll_27.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_27.mp4", "frames": 58, "duration": "29.0s", "duration_sec": 29.0, "color_desc": "Denim / Indigo Blue"}, {"title": "Roll 28: Denim / Indigo Blue", "filename": "Fabric_Roll_28.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_28.mp4", "frames": 57, "duration": "28.5s", "duration_sec": 28.5, "color_desc": "Denim / Indigo Blue"}, {"title": "Roll 29: Denim / Indigo Blue", "filename": "Fabric_Roll_29.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_29.mp4", "frames": 23, "duration": "11.5s", "duration_sec": 11.5, "color_desc": "Denim / Indigo Blue"}, {"title": "Roll 30: Light Silver / Grey Weave", "filename": "Fabric_Roll_30.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_30.mp4", "frames": 56, "duration": "28.0s", "duration_sec": 28.0, "color_desc": "Light Silver / Grey Weave"}, {"title": "Roll 31: Light Silver / Grey Weave", "filename": "Fabric_Roll_31.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_31.mp4", "frames": 27, "duration": "13.5s", "duration_sec": 13.5, "color_desc": "Light Silver / Grey Weave"}, {"title": "Roll 32: Light Silver / Grey Weave", "filename": "Fabric_Roll_32.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_32.mp4", "frames": 33, "duration": "16.5s", "duration_sec": 16.5, "color_desc": "Light Silver / Grey Weave"}, {"title": "Roll 33: Light Silver / Grey Weave", "filename": "Fabric_Roll_33.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_33.mp4", "frames": 58, "duration": "29.0s", "duration_sec": 29.0, "color_desc": "Light Silver / Grey Weave"}, {"title": "Roll 34: Light Silver / Grey Weave", "filename": "Fabric_Roll_34.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_34.mp4", "frames": 58, "duration": "29.0s", "duration_sec": 29.0, "color_desc": "Light Silver / Grey Weave"}, {"title": "Roll 35: Light Silver / Grey Weave", "filename": "Fabric_Roll_35.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_35.mp4", "frames": 58, "duration": "29.0s", "duration_sec": 29.0, "color_desc": "Light Silver / Grey Weave"}, {"title": "Roll 36: Gold / Mustard Yellow", "filename": "Fabric_Roll_36.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_36.mp4", "frames": 31, "duration": "15.5s", "duration_sec": 15.5, "color_desc": "Gold / Mustard Yellow"}, {"title": "Roll 37: Light Silver / Grey Weave", "filename": "Fabric_Roll_37.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_37.mp4", "frames": 42, "duration": "21.0s", "duration_sec": 21.0, "color_desc": "Light Silver / Grey Weave"}, {"title": "Roll 38: White / Light Cream", "filename": "Fabric_Roll_38.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_38.mp4", "frames": 48, "duration": "24.0s", "duration_sec": 24.0, "color_desc": "White / Light Cream"}, {"title": "Roll 39: White / Light Cream", "filename": "Fabric_Roll_39.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_39.mp4", "frames": 53, "duration": "26.5s", "duration_sec": 26.5, "color_desc": "White / Light Cream"}, {"title": "Roll 40: White / Light Cream", "filename": "Fabric_Roll_40.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_40.mp4", "frames": 52, "duration": "26.0s", "duration_sec": 26.0, "color_desc": "White / Light Cream"}, {"title": "Roll 41: White / Light Cream", "filename": "Fabric_Roll_41.mp4", "src": "./Consistent_Fabric_Roll_Videos/Fabric_Roll_41.mp4", "frames": 26, "duration": "13.0s", "duration_sec": 13.0, "color_desc": "White / Light Cream"}];
+  let currentIndex = 0;
+  const videoElem = document.getElementById('mainVideo');
+  const nowPlayingText = document.getElementById('nowPlayingText');
+  const playPauseBtn = document.getElementById('playPauseBtn');
+  const autoPlayNext = document.getElementById('autoPlayNext');
+
+  function init() {
+    renderPlaylist();
+    loadVideo(0);
+
+    videoElem.addEventListener('ended', () => {
+      if (autoPlayNext.checked) {
+        nextVideo();
+      }
+    });
+
+    videoElem.addEventListener('play', () => { playPauseBtn.textContent = 'Pause'; });
+    videoElem.addEventListener('pause', () => { playPauseBtn.textContent = 'Play'; });
+  }
+
+  function renderPlaylist() {
+    const container = document.getElementById('playlistItems');
+    container.innerHTML = '';
+    VIDEOS.forEach((item, index) => {
+      const div = document.createElement('div');
+      div.className = 'playlist-item' + (index === currentIndex ? ' active' : '');
+      div.onclick = () => loadVideo(index);
+      div.innerHTML = `
+        <div>
+          <span class="roll-title">${item.title}</span>
+          <span class="roll-meta">${item.frames} frames &bull; ${item.duration}</span>
+        </div>
+        <span style="font-size:0.8rem; opacity:0.6;">&rarr;</span>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  function loadVideo(index) {
+    currentIndex = index;
+    const item = VIDEOS[index];
+    videoElem.src = item.src;
+    videoElem.play();
+    nowPlayingText.textContent = `${item.title} (${item.frames} frames, ${item.duration})`;
+
+    document.querySelectorAll('.playlist-item').forEach((el, i) => {
+      if (i === index) {
+        el.classList.add('active');
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } else {
+        el.classList.remove('active');
+      }
+    });
+  }
+
+  function togglePlay() {
+    if (videoElem.paused) {
+      videoElem.play();
+    } else {
+      videoElem.pause();
+    }
+  }
+
+  function prevVideo() {
+    if (currentIndex > 0) {
+      loadVideo(currentIndex - 1);
+    } else {
+      loadVideo(VIDEOS.length - 1);
+    }
+  }
+
+  function nextVideo() {
+    if (currentIndex < VIDEOS.length - 1) {
+      loadVideo(currentIndex + 1);
+    } else {
+      loadVideo(0);
+    }
+  }
+
+  function setSpeed(speed, btn) {
+    videoElem.playbackRate = speed;
+    document.querySelectorAll('.btn-group .btn').forEach(b => {
+      if (b.textContent.includes('x')) b.classList.remove('active');
+    });
+    if (btn) btn.classList.add('active');
+  }
+
+  init();
+</script>
+</body>
+</html>

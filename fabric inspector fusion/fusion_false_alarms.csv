@@ -1,0 +1,2 @@
+test photos,YOLO boxes on no defect,unknown regions on no defect,unknown regions on a defect YOLO missed,false alarms per photo
+140,9,8,1,0.12

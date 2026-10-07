@@ -29,7 +29,10 @@ class Models:
         self.dev = device or ('cuda' if torch.cuda.is_available() else 'cpu')
         self.yolo = YOLO(str(yolo_path))
         ck = torch.load(str(patchcore_path), map_location='cpu')
-        self.bank = ck['bank'].float().to(self.dev)
+        self.bank = ck['bank'].float().to(self.dev).contiguous()
+        self.bank_sq = (self.bank * self.bank).sum(1)
+        self.pix_thr = float(ck['pix_thr']) if isinstance(ck, dict) and 'pix_thr' in ck else None   # saved by the speed-up notebook
+        self.half = bool(ck.get('half', False)) and self.dev == 'cuda'      # half precision only on a GPU
         self.net = torchvision.models.wide_resnet50_2(
             weights=torchvision.models.Wide_ResNet50_2_Weights.IMAGENET1K_V1).to(self.dev).eval()
         self.mean = torch.tensor([0.485, 0.456, 0.406], device=self.dev).view(1, 3, 1, 1)
@@ -49,16 +52,28 @@ class Models:
             rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
             x = torch.from_numpy(rgb.astype(np.float32) / 255).permute(2, 0, 1)[None].to(self.dev)
             x = (x - self.mean) / self.std
-            n = self.net
-            x = n.maxpool(n.relu(n.bn1(n.conv1(x))))
-            l2 = n.layer2(n.layer1(x)); l3 = n.layer3(l2)
-            f2 = F.avg_pool2d(l2, 3, 1, 1)
-            f3 = F.interpolate(F.avg_pool2d(l3, 3, 1, 1), size=f2.shape[-2:], mode='bilinear', align_corners=False)
-            f = torch.cat([f2, f3], 1)[0]
+            if self.half:
+                with torch.autocast('cuda', dtype=torch.float16):
+                    f = self._features(x)
+            else:
+                f = self._features(x)
+            f = f.float()
             C, h, w = f.shape
             q = f.permute(1, 2, 0).reshape(-1, C)
-            d = torch.cat([torch.cdist(q[i:i + 2048], self.bank).min(1).values for i in range(0, q.shape[0], 2048)])
-            return d.view(h, w).cpu().numpy()
+            out = []
+            for i in range(0, q.shape[0], 2048):          # squared distance to every bank patch, keep the nearest
+                qi = q[i:i + 2048]
+                d2 = (qi * qi).sum(1, keepdim=True) + self.bank_sq[None] - 2 * (qi @ self.bank.T)
+                out.append(d2.min(1).values)
+            return torch.cat(out).clamp_min(0).sqrt().view(h, w).cpu().numpy()
+
+    def _features(self, x):
+        F, n = self.F, self.net
+        x = n.maxpool(n.relu(n.bn1(n.conv1(x))))
+        l2 = n.layer2(n.layer1(x)); l3 = n.layer3(l2)
+        f2 = F.avg_pool2d(l2, 3, 1, 1)
+        f3 = F.interpolate(F.avg_pool2d(l3, 3, 1, 1), size=f2.shape[-2:], mode='bilinear', align_corners=False)
+        return self.torch.cat([f2, f3], 1)[0]
 
 
 # ----------------------------------------------------------------------------- geometry

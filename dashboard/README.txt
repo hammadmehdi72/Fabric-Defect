@@ -8,11 +8,13 @@ Files in this folder
 
 You also need, in this folder or in the Fabric folder above it:
   best.pt                 trained YOLO model        (Google Drive: fabric_inspector_yolo)
-  patchcore_textile.pt    PatchCore memory bank     (Google Drive: fabric_inspector_patchcore)
+  patchcore_textile_fast.pt   fast PatchCore memory bank, about 9 times faster   (Google Drive: fabric_inspector_speed)
+      or patchcore_textile.pt  the original, slower one                      (Google Drive: fabric_inspector_patchcore)
+  If both are there, the dashboard uses the fast one and sets the anomaly threshold to match (3.01).
 
 One-time setup (terminal)
   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
-  pip install -r requirements.txt
+  pip install -r requirements.txt     (run this again after an update: it now includes imageio-ffmpeg)
 
 Run
   cd C:\Users\mehdi\Desktop\Fabric\dashboard

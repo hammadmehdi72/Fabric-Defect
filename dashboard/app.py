@@ -33,6 +33,17 @@ def find_model(pattern, default_name):
     return str(max(hits, key=lambda p: p.stat().st_mtime)) if hits else str(HERE / default_name)
 
 
+@st.cache_data(show_spinner=False)
+def saved_threshold(path, mtime):
+    """Anomaly threshold stored in the PatchCore file by the speed-up notebook, or 2.88 for the original file."""
+    try:
+        import torch
+        ck = torch.load(path, map_location="cpu")
+        return round(float(ck["pix_thr"]), 2) if "pix_thr" in ck else 2.88
+    except Exception:
+        return 2.88
+
+
 @st.cache_resource(show_spinner="Loading YOLO and PatchCore (first time takes a minute)...")
 def load_models(yolo_path, patchcore_path):
     return I.Models(yolo_path, patchcore_path)
@@ -41,7 +52,7 @@ def load_models(yolo_path, patchcore_path):
 # ----------------------------------------------------------------------------- sidebar
 st.sidebar.header("Models")
 yolo_path = st.sidebar.text_input("YOLO weights", find_model("best*.pt", "best.pt")).strip().strip('"')
-pc_path = st.sidebar.text_input("PatchCore file", find_model("patchcore*.pt", "patchcore_textile.pt")).strip().strip('"')
+pc_path = st.sidebar.text_input("PatchCore file", find_model("patchcore*.pt", "patchcore_textile_fast.pt")).strip().strip('"')
 
 st.sidebar.header("Source")
 source = st.sidebar.radio("Inspect", ["Demo roll (test photos)", "Uploaded video"])
@@ -67,8 +78,11 @@ else:
 
 st.sidebar.header("Detection settings")
 conf = st.sidebar.slider("YOLO confidence", 0.05, 0.90, 0.25, 0.05)
-pix_thr = st.sidebar.number_input("Anomaly threshold", 0.5, 10.0, 2.88, 0.05,
-                                  help="Set on validation photos in the fusion notebook (2.88). Higher = fewer unknown-defect alarms.")
+_pc = pathlib.Path(pc_path)
+default_thr = saved_threshold(pc_path, _pc.stat().st_mtime) if _pc.exists() else 2.88
+pix_thr = st.sidebar.number_input("Anomaly threshold", 0.5, 10.0, default_thr, 0.05, key=f"thr_{pc_path}",
+                                  help="Set on validation photos: 2.88 for the original PatchCore file, 3.01 for the fast one. "
+                                       "Higher = fewer unknown-defect alarms.")
 pc_every = st.sidebar.slider("Run PatchCore every Nth model frame", 1, 10, 3,
                              help="PatchCore is the slow model. Running it less often is faster; YOLO still runs on every frame.")
 st.sidebar.header("Grading (defects per 100 m)")
@@ -106,7 +120,7 @@ def show(s):
 
 if run:
     if not pathlib.Path(yolo_path).exists() or not pathlib.Path(pc_path).exists():
-        st.error("Model file not found. Check the two paths in the sidebar (best.pt and patchcore_textile.pt).")
+        st.error("Model file not found. Check the two paths in the sidebar (best.pt and patchcore_textile_fast.pt or patchcore_textile.pt).")
         st.stop()
     models = load_models(yolo_path, pc_path)
 

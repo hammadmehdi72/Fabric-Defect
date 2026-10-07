@@ -9,6 +9,10 @@ A system that finds, names and counts defects on fabric as the roll moves, then 
 
 NIAI AI/ML Batch 5 capstone by **Hammad Mehdi** and **Eisha Maqbool**.
 
+![The Streamlit dashboard after inspecting a demo roll](docs/images/dashboard.png)
+
+*The dashboard after a 3 m demo roll built from test photos: annotated video, running count, defects per 100 m and grade.*
+
 ![Fusion output on unseen test photos](docs/images/fusion_examples.jpg)
 
 *Output on test photos the models never saw. Coloured boxes are defects YOLO named, the heatmap is where PatchCore sees something unusual.*
@@ -71,7 +75,9 @@ All numbers are on test photos held out by original photo, so augmented copies o
 | Fusion, defects found on 140 unseen photos | 93.3% | |
 | Fusion, false alarms per photo | 0.12 | |
 | Simulated 6 m roll, defects counted | 53 of 67 | not met (within 10%) |
-| Speed on a Colab T4 | about 1.6 fps | not met (5 fps) |
+| Speed on a Colab T4, both models on every frame | 15.6 fps (was 1.7) | met (5 fps) |
+
+**Speed-up.** PatchCore was the slow part (582 ms of every 600 ms frame). Keeping a 5% coreset of its memory bank (2,772 of 55,440 patches) and running it in half precision cut that to 48 ms. On the same roll the count stayed at 53 of 67. On the test photos, defects found went from 93.3% to 92.3% and false alarms from 0.12 to 0.13 per photo. See `speed_up_inspector.ipynb`.
 
 YOLO per class (mAP50): Hole 0.893, Stain 0.867, Knot 0.724, Line 0.671.
 
@@ -87,6 +93,12 @@ YOLO per class (mAP50): Hole 0.893, Stain 0.867, Knot 0.724, Line 0.671.
 So the "unknown defect" path works well for large, high-contrast defects and poorly for thin or tiny ones.
 
 ## Screenshots
+
+**Dataset samples**
+
+![Sample photos from the Textile dataset](docs/images/dataset_samples.jpg)
+
+*Photos from the Textile dataset: clean fabric and defects such as holes and knots.*
 
 **Simulated roll with running count**
 
@@ -108,6 +120,10 @@ So the "unknown defect" path works well for large, high-contrast defects and poo
 
 ![YOLO training results](docs/images/yolo_colab_results.jpg)
 
+**Project progress**
+
+![Project progress summary](docs/images/progress.png)
+
 ## Run the dashboard
 
 ```
@@ -120,7 +136,7 @@ streamlit run app.py
 
 The browser opens at `http://localhost:8501`. From there you can run a simulated roll built from test photos or upload your own video, and download the annotated video and the defect log.
 
-The dashboard needs the two model files that are already in `dashboard/`: the YOLO weights (`best*.pt`) and `patchcore_textile.pt`. The PatchCore file is 170 MB and is stored with Git LFS, which is why `git lfs install` comes first.
+The dashboard needs the two model files that are already in `dashboard/`: the YOLO weights (`best*.pt`) and a PatchCore file. If `patchcore_textile_fast.pt` (17 MB) is there it is used; otherwise the original `patchcore_textile.pt`, which is 170 MB and is stored with Git LFS, which is why `git lfs install` comes first.
 
 ## Reproduce the training
 
@@ -143,8 +159,14 @@ The dashboard needs the two model files that are already in `dashboard/`: the YO
 | `train_yolo_textile.ipynb`, `train_yolo_local.py` | YOLO training |
 | `train_patchcore_textile.ipynb` | PatchCore training |
 | `fusion_inspector.ipynb`, `fusion_inspector_v2.ipynb` | Fusion, counting and grading |
+| `speed_up_inspector.ipynb` | Speed-up: smaller PatchCore bank and half precision |
+| `count_diagnosis.ipynb` | Finds why defects are missed on the roll and tries fixes |
+| `retrain_yolo_960.ipynb` | Retrains YOLO at higher resolution and checks its defect counts |
 | `make_video_from_dataset.py` | Builds simulated roll videos from dataset photos |
-| `dashboard/` | Streamlit app and the two trained models |
+| `dashboard/app.py` | The dashboard screen, settings, inspection run and downloads |
+| `dashboard/inspector.py` | Runs the models, tracks defects, counts them and grades the roll |
+| `dashboard/requirements.txt` | Python packages needed to run the dashboard |
+| `dashboard/patchcore_textile_fast.pt` | Smaller, faster PatchCore model weights |
 | `Textile.yolov11/`, `fabric defect.coco/` | Datasets as exported from Roboflow |
 | `prepared/` | Output of `prepare_data.py` |
 | `videos/` | 51 simulated roll videos with ground-truth CSVs |
@@ -157,7 +179,7 @@ The dashboard needs the two model files that are already in `dashboard/`: the YO
 - Nothing has been tested on real fabric video yet. The roll videos are made by joining dataset photos.
 - The count on the simulated roll is about 21% under (53 of 67).
 - The Line class is the weakest for both models.
-- Speed is about 1.6 fps on a T4, below the 5 fps target.
+- PatchCore only knows the fabric it was shown. On a different fabric it flags large areas as unknown until it is given clean samples of that fabric.
 
 ## Data
 

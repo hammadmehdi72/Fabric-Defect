@@ -5,6 +5,8 @@ Used by app.py (the Streamlit dashboard). No Streamlit code in here, so it can a
 import collections
 import pathlib
 import random
+import threading
+import time
 
 import cv2
 import numpy as np
@@ -103,6 +105,27 @@ def regions(amap_s, thr):
     return out
 
 
+FONT = cv2.FONT_HERSHEY_SIMPLEX
+HUD_H = 38           # height of the status bar at the top of the frame
+
+
+def draw_label(img, text, x1, y1, y2, color, scale=0.7):
+    """A label that stays readable on any fabric: a filled tag in the box colour with dark or white text.
+    It sits above the box, or inside its top edge when there is no room above."""
+    (tw, th), base = cv2.getTextSize(text, FONT, scale, 2)
+    pad = 5
+    h = th + base + 2 * pad
+    W = img.shape[1]
+    x = int(min(max(x1 - 1, 0), max(W - tw - 2 * pad, 0)))
+    top = int(y1) - h
+    if top < HUD_H:                                   # no room above the box: put the tag inside it
+        top = int(min(max(y1, HUD_H), max(img.shape[0] - h, 0)))
+    cv2.rectangle(img, (x, top), (x + tw + 2 * pad, top + h), color, -1)
+    cv2.rectangle(img, (x, top), (x + tw + 2 * pad, top + h), (20, 20, 20), 1)
+    dark = 0.114 * color[0] + 0.587 * color[1] + 0.299 * color[2] > 140     # BGR brightness
+    cv2.putText(img, text, (x + pad, top + pad + th), FONT, scale, (20, 20, 20) if dark else (255, 255, 255), 2, cv2.LINE_AA)
+
+
 def grade(rate, a_max=5, b_max=15):
     return 'A' if rate <= a_max else ('B' if rate <= b_max else 'C')
 
@@ -111,11 +134,15 @@ def grade(rate, a_max=5, b_max=15):
 class Inspector:
     """Feed it frames with their position on the roll; it fuses both models and counts each defect once."""
 
-    def __init__(self, models, px_per_m, conf=0.25, pix_thr=2.88, patchcore_every=3, min_hits=2):
+    def __init__(self, models, px_per_m, conf=0.25, pix_thr=2.88, patchcore_every=3, min_hits=2, max_anomalous_share=None):
         self.m, self.px_per_m = models, px_per_m
         self.conf, self.pix_thr, self.pc_every, self.min_hits = conf, pix_thr, max(1, patchcore_every), min_hits
         self.tracks, self.n = [], 0
+        # live camera: when more than this share of the view looks unusual, the camera is not looking at fabric the
+        # models know (a face, a room, another cloth), so nothing is counted. None = always count.
+        self.max_share, self.unfamiliar = max_anomalous_share, False
         self.end_px = 0
+        self.start_px = 0            # lowest roll position seen (below 0 only if a live camera's fabric moves backwards)
         self.last_known, self.last_unknown, self.last_amap, self.last_amap_off = [], [], None, 0
 
     # -- tracking
@@ -150,11 +177,14 @@ class Inspector:
             amap_s = cv2.GaussianBlur(self.m.anomaly_map(frame).astype(np.float32), (0, 0), 1.0)
             if ignore_cols is not None and len(ignore_cols):
                 amap_s[:, ignore_cols] = 0
+            self.unfamiliar = self.max_share is not None and float((amap_s > self.pix_thr).mean()) > self.max_share
             unknown = [r for r in regions(amap_s, self.pix_thr) if not any(overlaps(r[1:], k[2:]) for k in known)]
             self.last_amap, self.last_amap_off = amap_s, offset
             self.last_unknown = [(sc, offset + x1, y1, offset + x2, y2) for sc, x1, y1, x2, y2 in unknown]
         else:
             unknown = []
+        if self.unfamiliar:                                 # not fabric the models know: show nothing, count nothing
+            known, unknown, self.last_unknown = [], [], []
         for cls, conf, x1, y1, x2, y2 in known:
             if x1 > 2 and x2 < W - 2:                       # boxes cut by the frame edge are seen whole in other frames
                 self._add('known', cls, conf, (offset + x1, y1, offset + x2, y2))
@@ -166,6 +196,7 @@ class Inspector:
         self.last_unknown = [u for u in self.last_unknown if not any(overlaps(u[1:], k[2:]) for k in self.last_known)]
         self.n += 1
         self.end_px = max(self.end_px, offset + W)
+        self.start_px = min(self.start_px, offset)
         return self.render(frame, offset)
 
     def render(self, frame, offset, hud=None):
@@ -173,7 +204,12 @@ class Inspector:
         out = frame.copy()
         H, W = frame.shape[:2]
         self.end_px = max(self.end_px, offset + W)
-        if self.last_amap is not None:
+        self.start_px = min(self.start_px, offset)
+        if self.unfamiliar:
+            msg = "This does not look like the fabric the models know. Nothing is counted."
+            cv2.rectangle(out, (0, H - 44), (W, H), (30, 30, 160), -1)
+            cv2.putText(out, msg, (12, H - 15), FONT, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
+        elif self.last_amap is not None:
             a = self.last_amap
             heat = cv2.applyColorMap(np.clip(a / (self.pix_thr * 1.6) * 255, 0, 255).astype(np.uint8), cv2.COLORMAP_JET)
             mask = (a > self.pix_thr * 0.85).astype(np.uint8)
@@ -188,24 +224,27 @@ class Inspector:
             if x2 < 0 or x1 > W:
                 continue
             c = COLORS.get(cls, (0, 255, 0))
-            cv2.rectangle(out, (int(x1), int(y1)), (int(x2), int(y2)), c, 2)
-            cv2.putText(out, f"{cls} {conf:.2f}", (int(max(x1, 2)), max(int(y1) - 5, 46)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, c, 2)
+            cv2.rectangle(out, (int(x1), int(y1)), (int(x2), int(y2)), c, 3)
+            draw_label(out, f"{cls} {conf:.2f}", x1, y1, y2, c)
         for score, x1, y1, x2, y2 in self.last_unknown:
             x1, x2 = x1 - offset, x2 - offset
             if x2 < 0 or x1 > W:
                 continue
             c = COLORS['unknown']
-            cv2.rectangle(out, (int(x1), int(y1)), (int(x2), int(y2)), c, 2)
-            cv2.putText(out, f"unknown {score:.1f}", (int(max(x1, 2)), max(int(y1) - 5, 46)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, c, 2)
+            cv2.rectangle(out, (int(x1), int(y1)), (int(x2), int(y2)), c, 3)
+            draw_label(out, f"unknown {score:.1f}", x1, y1, y2, c)
         if hud:
-            cv2.rectangle(out, (0, 0), (W, 30), (20, 20, 20), -1)
-            cv2.putText(out, hud, (10, 21), cv2.FONT_HERSHEY_SIMPLEX, 0.58, (255, 255, 255), 2)
+            cv2.rectangle(out, (0, 0), (W, HUD_H), (20, 20, 20), -1)
+            scale = 0.72
+            while scale > 0.4 and cv2.getTextSize(hud, FONT, scale, 2)[0][0] > W - 20:   # shrink to fit narrow frames
+                scale -= 0.04
+            cv2.putText(out, hud, (10, HUD_H - 12), FONT, scale, (255, 255, 255), 2, cv2.LINE_AA)
         return out
 
     # -- results
     def summary(self, a_max=5, b_max=15, final=False):
         done = self.counted(None if final else self.end_px)
-        metres = self.end_px / self.px_per_m if self.px_per_m else 0.0
+        metres = (self.end_px - self.start_px) / self.px_per_m if self.px_per_m else 0.0
         rate = len(done) / metres * 100 if metres > 0 else 0.0
         by_type = collections.Counter(self.label(t) for t in done)
         return {'metres': metres, 'defects': len(done), 'known': sum(t['kind'] == 'known' for t in done),
@@ -218,10 +257,63 @@ class Inspector:
                 f"per 100 m {s['rate']:.0f}   grade {s['grade']}")
 
     def log(self):
-        rows = [{'type': self.label(t), 'kind': t['kind'], 'metres_from_start': round(float(t['box'][0] / self.px_per_m), 3),
+        rows = [{'type': self.label(t), 'kind': t['kind'], 'metres_from_start': round(float((t['box'][0] - self.start_px) / self.px_per_m), 3),
                  'frames_seen': int(t['hits']), 'confidence': round(float(t['best']), 2) if t['kind'] == 'known' else None}
                 for t in self.counted()]
         return sorted(rows, key=lambda r: r['metres_from_start'])
+
+
+# ----------------------------------------------------------------------------- live camera
+class LiveWorker(threading.Thread):
+    """Runs the models in the background on the newest camera frame, so the picture on screen never waits for them.
+    Frames that arrive while the models are busy are skipped."""
+
+    def __init__(self, inspector):
+        super().__init__(daemon=True)
+        self.insp, self.job, self.lock = inspector, None, threading.Lock()
+        self.stop, self.error, self.started_at = False, None, time.time()
+
+    def submit(self, frame, offset):
+        with self.lock:
+            self.job = (frame, offset)                 # keep only the newest frame
+
+    def rate(self):
+        return self.insp.n / max(time.time() - self.started_at, 1e-6)
+
+    def run(self):
+        while not self.stop:
+            with self.lock:
+                job, self.job = self.job, None
+            if job is None:
+                time.sleep(0.002)
+                continue
+            try:
+                self.insp.process(*job)
+            except Exception as e:                     # shown on the page by the main loop
+                self.error = e
+                return
+
+
+def open_camera(source, width=1280, height=720):
+    """source: a camera number (0 = built-in webcam) or a stream address such as http://192.168.1.5:4747/video."""
+    import os
+    src = int(source) if str(source).strip().isdigit() else str(source).strip()
+    if isinstance(src, int) and os.name == 'nt':
+        cap = None
+        for backend in (cv2.CAP_DSHOW, cv2.CAP_MSMF, cv2.CAP_ANY):
+            candidate = cv2.VideoCapture(src, backend)
+            if candidate.isOpened() and candidate.read()[0]:
+                cap = candidate
+                break
+            candidate.release()
+        if cap is None:
+            cap = cv2.VideoCapture()
+    else:
+        cap = cv2.VideoCapture(src)
+    if cap.isOpened() and isinstance(src, int):
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, width); cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)             # always read the newest frame
+    return cap
 
 
 # ----------------------------------------------------------------------------- frame sources
@@ -316,6 +408,6 @@ def to_h264(src, dst):
         exe = shutil.which('ffmpeg')
     if not exe:
         return False
-    r = subprocess.run([exe, '-y', '-loglevel', 'error', '-i', str(src), '-vcodec', 'libx264', '-pix_fmt', 'yuv420p',
+    r = subprocess.run([exe, '-y', '-loglevel', 'error', '-i', str(src), '-vcodec', 'libx264', '-crf', '18', '-preset', 'veryfast', '-pix_fmt', 'yuv420p',
                         '-movflags', '+faststart', str(dst)], capture_output=True)
     return r.returncode == 0 and pathlib.Path(dst).exists()

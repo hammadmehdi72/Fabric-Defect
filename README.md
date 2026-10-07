@@ -134,7 +134,7 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-The browser opens at `http://localhost:8501`. From there you can run a simulated roll built from test photos or upload your own video, and download the annotated video and the defect log.
+The browser opens at `http://localhost:8501`. From there you can run a simulated roll built from test photos, upload your own video, or inspect live video from a webcam connected to the computer running Streamlit. Live camera mode has Start and Stop controls and provides a defect summary and downloadable log when stopped.
 
 The dashboard needs the two model files that are already in `dashboard/`: the YOLO weights (`best*.pt`) and a PatchCore file. If `patchcore_textile_fast.pt` (17 MB) is there it is used; otherwise the original `patchcore_textile.pt`, which is 170 MB and is stored with Git LFS, which is why `git lfs install` comes first.
 

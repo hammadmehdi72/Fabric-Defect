@@ -11,3 +11,12 @@ runs/
 
 # duplicate of dashboard/best .pt
 best (1).pt
+
+# local Python environment
+.venv/
+
+# frames saved from the live camera (may show people or rooms); upload to Roboflow instead
+captured_frames/
+
+# personal photos
+WhatsApp Image*

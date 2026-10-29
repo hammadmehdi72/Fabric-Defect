@@ -47,9 +47,9 @@ class Models:
         return [(self.yolo.names[int(c)], float(p), *map(float, b))
                 for b, p, c in zip(r.boxes.xyxy.tolist(), r.boxes.conf.tolist(), r.boxes.cls.tolist())]
 
-    def anomaly_map(self, bgr):
-        """Distance of every 8 x 8 px patch to its nearest normal patch. Shape (H/8, W/8)."""
-        torch, F = self.torch, self.F
+    def patch_features(self, bgr):
+        """One feature vector per 8 x 8 px patch: (patches x channels) on the model device, plus rows and cols."""
+        torch = self.torch
         with torch.no_grad():
             rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
             x = torch.from_numpy(rgb.astype(np.float32) / 255).permute(2, 0, 1)[None].to(self.dev)
@@ -61,13 +61,56 @@ class Models:
                 f = self._features(x)
             f = f.float()
             C, h, w = f.shape
-            q = f.permute(1, 2, 0).reshape(-1, C)
+            return f.permute(1, 2, 0).reshape(-1, C), h, w
+
+    def anomaly_map(self, bgr):
+        """Distance of every 8 x 8 px patch to its nearest normal patch. Shape (H/8, W/8)."""
+        torch = self.torch
+        q, h, w = self.patch_features(bgr)
+        bank, bank_sq = self.bank, self.bank_sq            # read once: learn_fabric may swap them
+        with torch.no_grad():
             out = []
             for i in range(0, q.shape[0], 2048):          # squared distance to every bank patch, keep the nearest
                 qi = q[i:i + 2048]
-                d2 = (qi * qi).sum(1, keepdim=True) + self.bank_sq[None] - 2 * (qi @ self.bank.T)
+                d2 = (qi * qi).sum(1, keepdim=True) + bank_sq[None] - 2 * (qi @ bank.T)
                 out.append(d2.min(1).values)
             return torch.cat(out).clamp_min(0).sqrt().view(h, w).cpu().numpy()
+
+    def learn_fabric(self, frames, keep=3000, per_frame=1500, hold_out=6, seed=0):
+        """Build a new PatchCore memory from camera frames of CLEAN fabric (no defects in view) and set the alarm
+        threshold from frames held back for checking. Returns the new pixel threshold. This is how the system is
+        set up for a new fabric or a new camera: no labelling needed."""
+        torch = self.torch
+        if len(frames) < hold_out + 4:
+            raise ValueError("Need more clean frames to learn from.")
+        g = torch.Generator().manual_seed(seed)
+        train, check = frames[:-hold_out], frames[-hold_out:]
+        with torch.no_grad():
+            feats = []
+            for f in train:
+                q, _, _ = self.patch_features(f)
+                idx = torch.randperm(q.shape[0], generator=g)[:per_frame].to(q.device)
+                feats.append(q[idx])
+            X = torch.cat(feats)
+            # greedy coreset: keep the patches that best cover the variety of this fabric
+            P = X @ (torch.randn(X.shape[1], 128, generator=g).to(X.device) / 128 ** 0.5)
+            keep = min(keep, X.shape[0])
+            picked = [0]
+            min_d = torch.cdist(P, P[0:1]).squeeze(1)
+            for _ in range(keep - 1):
+                i = int(min_d.argmax()); picked.append(i)
+                min_d = torch.minimum(min_d, torch.cdist(P, P[i:i + 1]).squeeze(1))
+            bank = X[torch.tensor(picked, device=X.device)].contiguous()
+            del X, P, min_d
+        self.bank, self.bank_sq = bank, (bank * bank).sum(1)
+        scores = [cv2.GaussianBlur(self.anomaly_map(f).astype(np.float32), (0, 0), 1.0).ravel() for f in check]
+        thr = float(np.percentile(np.concatenate(scores), 99.9)) * 1.05       # clean frames should almost never alarm
+        self.pix_thr = thr
+        return thr
+
+    def save_bank(self, path, pix_thr, note=""):
+        self.torch.save({'bank': self.bank.cpu(), 'threshold': pix_thr, 'pix_thr': pix_thr,
+                         'half': self.half, 'note': note}, str(path))
 
     def _features(self, x):
         F, n = self.F, self.net
@@ -109,7 +152,7 @@ FONT = cv2.FONT_HERSHEY_SIMPLEX
 HUD_H = 38           # height of the status bar at the top of the frame
 
 
-def draw_label(img, text, x1, y1, y2, color, scale=0.7):
+def draw_label(img, text, x1, y1, y2, color, scale=0.7, min_top=None):
     """A label that stays readable on any fabric: a filled tag in the box colour with dark or white text.
     It sits above the box, or inside its top edge when there is no room above."""
     (tw, th), base = cv2.getTextSize(text, FONT, scale, 2)
@@ -118,8 +161,9 @@ def draw_label(img, text, x1, y1, y2, color, scale=0.7):
     W = img.shape[1]
     x = int(min(max(x1 - 1, 0), max(W - tw - 2 * pad, 0)))
     top = int(y1) - h
-    if top < HUD_H:                                   # no room above the box: put the tag inside it
-        top = int(min(max(y1, HUD_H), max(img.shape[0] - h, 0)))
+    min_top = HUD_H if min_top is None else min_top
+    if top < min_top:                                 # no room above the box: put the tag inside it
+        top = int(min(max(y1, min_top), max(img.shape[0] - h, 0)))
     cv2.rectangle(img, (x, top), (x + tw + 2 * pad, top + h), color, -1)
     cv2.rectangle(img, (x, top), (x + tw + 2 * pad, top + h), (20, 20, 20), 1)
     dark = 0.114 * color[0] + 0.587 * color[1] + 0.299 * color[2] > 140     # BGR brightness

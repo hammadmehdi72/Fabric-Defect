@@ -1,0 +1,6 @@
+option,bank patches,pixel threshold,found by YOLO,found by PatchCore,found by either,false alarms per photo,YOLO ms,PatchCore ms,"fps, PatchCore every frame","fps, PatchCore every 3rd frame","fps, PatchCore every 5th frame"
+original (as in the fusion notebook),55440,2.88,0.919,0.478,0.933,0.121,20.1,582.1,1.7,4.7,7.3
+"half precision, full bank",55440,2.88,0.919,0.478,0.933,0.121,15.4,444.3,2.2,6.1,9.6
+"half precision, 25% bank",13860,2.91,0.919,0.469,0.928,0.143,14.4,140.3,6.5,16.3,23.5
+"half precision, 10% bank",5544,2.98,0.919,0.459,0.923,0.136,15.2,73.7,11.3,25.1,33.4
+"half precision, 5% bank",2772,3.01,0.919,0.469,0.923,0.129,15.1,48.2,15.8,32.0,40.4

@@ -17,6 +17,12 @@ NIAI AI/ML Batch 5 capstone by **Hammad Mehdi** and **Eisha Maqbool**.
 
 *Output on test photos the models never saw. Coloured boxes are defects YOLO named, the heatmap is where PatchCore sees something unusual.*
 
+## Showcase video and slides
+
+- [Fabric_Defect_Inspector_Cartoon.mp4](Fabric_Defect_Inspector_Cartoon.mp4): 1 minute 21 second animated overview with voiceover
+- [Fabric_Defect_Inspector_Showcase.mp4](Fabric_Defect_Inspector_Showcase.mp4): 2 minute 49 second walkthrough of the problem, method, results and dashboard
+- [Fabric_Defect_Inspector_Showcase.pptx](Fabric_Defect_Inspector_Showcase.pptx): final presentation, with the speaking script in the slide notes
+
 ## Contents
 
 - [How it works](#how-it-works)
@@ -168,6 +174,8 @@ cd Fabric-Defect/dashboard
 pip install -r requirements.txt
 streamlit run app.py
 ```
+
+If Windows blocks `streamlit.exe` (Smart App Control or an Application Control policy), start it through Python instead: `python -m streamlit run app.py`.
 
 The browser opens at `http://localhost:8501`. Pick a source in the sidebar: a demo roll built from test photos, your own video, or a live camera connected to the computer running Streamlit. See [Dashboard](#dashboard) for what each part of the screen shows. For live camera, fix the camera above the fabric with bright, even light, and press "Learn this fabric" with clean cloth in view before inspecting.
 
